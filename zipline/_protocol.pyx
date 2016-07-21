@@ -164,6 +164,7 @@ cdef class BarData:
     cdef object _universe_func
     cdef object _last_calculated_universe
     cdef object _universe_last_updated_at
+    cdef bool _daily_mode
 
     cdef bool _adjust_minutes
 
@@ -176,6 +177,8 @@ cdef class BarData:
         self.simulation_dt_func = simulation_dt_func
         self.data_frequency = data_frequency
         self._views = {}
+
+        self._daily_mode = (self.data_frequency == "daily")
 
         self._universe_func = universe_func
         self._last_calculated_universe = None
@@ -225,6 +228,11 @@ cdef class BarData:
         if self._adjust_minutes:
             dt = \
                 self.data_portal.trading_calendar.previous_minute(dt)
+
+        if self._daily_mode:
+            # if we're in daily mode, take the given dt (which is the last
+            # minute of the session) and get the session label for it.
+            dt = self.data_portal.trading_calendar.minute_to_session_label(dt)
 
         return dt
 

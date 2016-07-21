@@ -25,6 +25,7 @@ import toolz
 from logbook import TestHandler, WARNING
 from mock import MagicMock
 from nose_parameterized import parameterized
+from pandas.tseries.tools import normalize_date
 from six import iteritems, itervalues
 from six.moves import range
 from testfixtures import TempDirectory
@@ -3723,12 +3724,18 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
         transactions = output['transactions']
         initial_fills = transactions.iloc[1]
         self.assertEqual(len(initial_fills), len(assets))
+
+        last_minute_of_session = \
+            self.trading_calendar.open_and_close_for_session(
+                self.test_days[1]
+            )[1]
+
         for sid, txn in zip(sids, initial_fills):
             self.assertDictContainsSubset(
                 {
                     'amount': order_size,
                     'commission': None,
-                    'dt': self.test_days[1],
+                    'dt': last_minute_of_session,
                     'price': initial_fill_prices[sid],
                     'sid': sid,
                 },
@@ -3795,15 +3802,15 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
                 context.portfolio.cash == context.portfolio.starting_cash
             )
 
-            now = context.get_datetime()
+            today_session = normalize_date(context.get_datetime())
 
-            if now == first_asset_end_date:
+            if today_session == first_asset_end_date:
                 # Equity 0 will no longer exist tomorrow, so this order will
                 # never be filled.
                 assert len(context.get_open_orders()) == 0
                 context.order(context.sid(0), 10)
                 assert len(context.get_open_orders()) == 1
-            elif now == first_asset_auto_close_date:
+            elif today_session == first_asset_auto_close_date:
                 assert len(context.get_open_orders()) == 0
 
         algo = TradingAlgorithm(
@@ -3821,12 +3828,18 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
 
         original_open_orders = orders_for_date(first_asset_end_date)
         assert len(original_open_orders) == 1
+
+        last_close_for_asset = \
+            algo.trading_calendar.open_and_close_for_session(
+                first_asset_end_date
+            )[1]
+
         self.assertDictContainsSubset(
             {
                 'amount': 10,
                 'commission': 0,
-                'created': first_asset_end_date,
-                'dt': first_asset_end_date,
+                'created': last_close_for_asset,
+                'dt': last_close_for_asset,
                 'sid': assets[0],
                 'status': ORDER_STATUS.OPEN,
                 'filled': 0,
@@ -3840,7 +3853,7 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
             {
                 'amount': 10,
                 'commission': 0,
-                'created': first_asset_end_date,
+                'created': last_close_for_asset,
                 'dt': first_asset_auto_close_date,
                 'sid': assets[0],
                 'status': ORDER_STATUS.CANCELLED,
