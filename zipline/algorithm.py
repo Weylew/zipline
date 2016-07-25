@@ -854,7 +854,7 @@ class TradingAlgorithm(object):
 
         packet = {
             'capital_change': {
-                'dt': EPOCH(dt),
+                'date': EPOCH(dt),
                 'type': 'cash',
                 'target': capital_change['value'] if
                 capital_change['type'] == 'target' else None,

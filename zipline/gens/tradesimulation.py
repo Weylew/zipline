@@ -209,11 +209,17 @@ class AlgorithmSimulator(object):
 
             for dt, action in self.clock:
                 if action == BAR:
-                    yield calculate_minute_capital_changes(dt)
+                    cc = calculate_minute_capital_changes(dt)
+                    if cc is not None:
+                        yield cc
+
                     every_bar(dt)
                 elif action == DAY_START:
-                    yield algo.calculate_capital_changes(
+                    cc = algo.calculate_capital_changes(
                         dt, emission_rate=emission_rate, is_interday=True)
+                    if cc is not None:
+                        yield cc
+
                     once_a_day(dt)
                 elif action == DAY_END:
                     # End of the day.
